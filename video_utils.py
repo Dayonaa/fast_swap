@@ -1,0 +1,154 @@
+import os
+import cv2
+import globals
+from face_util import FaceUtil
+from tqdm import tqdm
+import shutil
+
+class VideoUtil:
+    def test():
+        print("")
+
+    import shutil  # tambahkan ini di bagian atas file jika belum ada
+
+    @staticmethod
+    def extract_video_frames(video_path, duration_sec=None):
+        # Hapus folder extracted frames jika ada
+        if os.path.exists(globals.EXTRACTED_FRAME_DIR):
+            shutil.rmtree(globals.EXTRACTED_FRAME_DIR)
+        os.makedirs(globals.EXTRACTED_FRAME_DIR, exist_ok=True)
+
+        cap = cv2.VideoCapture(video_path)
+
+        if not cap.isOpened():
+            print("❌ Gagal membuka video.")
+            return
+
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))  # Ambil total frame video
+        video_duration_sec = total_frames / fps  # Hitung durasi video dalam detik
+
+        # Jika duration_sec None, gunakan durasi video
+        if duration_sec is None:
+            duration_sec = video_duration_sec
+
+        # Hitung total frame berdasarkan durasi yang diinginkan
+        total_frames_to_extract = int(duration_sec * fps)
+
+        print(f"⚙️ Durasi video: {video_duration_sec:.2f} detik. Menyimpan {total_frames_to_extract} frame.")
+
+        count = 0
+        while count < total_frames_to_extract:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            cv2.imwrite(os.path.join(globals.EXTRACTED_FRAME_DIR, f"frame_{count:05d}.jpg"), frame)
+            count += 1
+
+        cap.release()
+        print(f"✅ {count} frame (durasi {duration_sec} detik) disimpan ke '{globals.EXTRACTED_FRAME_DIR}'.")
+
+
+    @staticmethod
+    def check_gender():
+        face_util = FaceUtil()
+        image_files = sorted(os.listdir(globals.EXTRACTED_FRAME_DIR))
+
+        for img_name in image_files:
+            img_path = os.path.join(globals.EXTRACTED_FRAME_DIR, img_name)
+
+            image, faces = face_util.detect_faces(img_path)  # <- return tuple: image, faces
+
+            print(f"{img_name} -> {len(faces)} face(s)")
+
+            for i, face in enumerate(faces):
+                gender = face_util.detect_gender(face)
+                print(gender)
+
+
+
+    @staticmethod
+    def swap_video(src_image_path):
+        face_util = FaceUtil()
+        image_files = sorted(os.listdir(globals.EXTRACTED_FRAME_DIR))
+
+        # Ambil source face
+        src_img, src_faces = face_util.detect_faces(src_image_path)
+        if len(src_faces) == 0:
+            print("❌ Tidak ada wajah sumber.")
+            return
+        source_face = src_faces[0]
+
+        # Ambil target referensi untuk histogram dari frame pertama yang punya wajah
+        reference_crop = None
+        for img_name in image_files:
+            img_path = os.path.join(globals.EXTRACTED_FRAME_DIR, img_name)
+            img, faces = face_util.detect_faces(img_path)
+            if faces:
+                reference_crop = face_util.crop_face(faces[0], img)
+                break
+
+        # Proses semua frame ok
+        # Hapus folder swapped frames jika ada
+        if os.path.exists(globals.SWAPPED_FRAME_DIR):
+            shutil.rmtree(globals.SWAPPED_FRAME_DIR)
+        os.makedirs(globals.SWAPPED_FRAME_DIR, exist_ok=True)
+        pbar = tqdm(image_files, desc="🎞️ Proses swapping", unit="frame")
+
+        for img_name in pbar:
+            img_path = os.path.join(globals.EXTRACTED_FRAME_DIR, img_name)
+            image, faces = face_util.detect_faces(img_path)
+
+            output_img = image.copy()
+
+            if faces:
+                for face in faces:
+                    gender = face_util.detect_gender(face)
+                    if gender == "Female":
+                        swapped = face_util.swap_faces(source_face, output_img, face)
+                        swapped = face_util.match_histogram(swapped, reference_crop)
+                        output_img = swapped  # gunakan hasil swap terakhir
+            # Tetap simpan output meskipun tidak swap agar urutan frame tetap
+            out_path = os.path.join(globals.SWAPPED_FRAME_DIR, img_name)
+            cv2.imwrite(out_path, output_img)
+            
+         # Hapus folder extracted frame setelah selesai
+        shutil.rmtree(globals.EXTRACTED_FRAME_DIR)
+        print(f"🧹 Folder {globals.EXTRACTED_FRAME_DIR} telah dihapus.")
+
+    @staticmethod
+    def create_video_from_frames(fps=30):
+        frame_files = sorted(os.listdir(globals.SWAPPED_FRAME_DIR))
+        if len(frame_files) == 0:
+            print("❌ Tidak ada frame ditemukan di folder.")
+            return
+
+        first_frame_path = os.path.join(globals.SWAPPED_FRAME_DIR, frame_files[0])
+        first_frame = cv2.imread(first_frame_path)
+
+        if first_frame is None:
+            print("❌ Gagal membaca frame pertama.")
+            return
+
+        height, width, _ = first_frame.shape
+
+        # Pastikan folder output ada
+        output_dir = os.path.dirname(globals.OUTPUT_VIDEO)
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Inisialisasi VideoWriter
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out = cv2.VideoWriter(globals.OUTPUT_VIDEO, fourcc, fps, (width, height))
+
+        for filename in frame_files:
+            if filename.lower().endswith((".jpg", ".png")):
+                frame_path = os.path.join(globals.SWAPPED_FRAME_DIR, filename)
+                frame = cv2.imread(frame_path)
+
+                if frame is not None:
+                    out.write(frame)
+                else:
+                    print(f"⚠️ Gagal membaca frame {filename}, dilewati.")
+
+        out.release()
+        print(f"✅ Video selesai dibuat: {globals.OUTPUT_VIDEO}")
