@@ -160,11 +160,11 @@ class VideoUtil:
 
     @staticmethod
     def swap_video_parallel(src_image_path):
-        src_img, src_faces = FaceUtil.detect_faces(src_image_path)
-        if len(src_faces) == 0:
-            print("❌ Tidak ada wajah sumber.")
-            return
-        source_face = src_faces[0]
+        # src_img, src_faces = FaceUtil.detect_faces(src_image_path)
+        # if len(src_faces) == 0:
+        #     print("❌ Tidak ada wajah sumber.")
+        #     return
+        # source_face = src_faces[0]
 
         image_files = sorted(os.listdir(globals.EXTRACTED_FRAME_DIR))
         os.makedirs(globals.SWAPPED_FRAME_DIR, exist_ok=True)
@@ -173,11 +173,11 @@ class VideoUtil:
         list_0 = image_files[:mid]
         list_1 = image_files[mid:]
 
-        src_face_data = source_face.__dict__
+        # src_face_data = source_face.__dict__
 
         # ✅ Panggil langsung FaceUtil.swap_worker karena sudah staticmethod
-        p0 = Process(target=FaceUtil.swap_worker, args=(0, list_0, copy.deepcopy(src_face_data)))
-        p1 = Process(target=FaceUtil.swap_worker, args=(1, list_1, copy.deepcopy(src_face_data)))
+        p0 = Process(target=FaceUtil.swap_worker, args=(0, list_0, copy.deepcopy(src_image_path)))
+        p1 = Process(target=FaceUtil.swap_worker, args=(1, list_1, copy.deepcopy(src_image_path)))
         p0.start()
         p1.start()
         p0.join()

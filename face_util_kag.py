@@ -80,23 +80,32 @@ class FaceUtil:
         return swapper.get(target_image, target_face, source_face)
 
     @staticmethod
-    def swap_worker(device_id, image_names, src_face_data):
+    def swap_worker(device_id, image_names, src_image_path):
         os.environ["CUDA_VISIBLE_DEVICES"] = str(device_id)
 
         from insightface.app import FaceAnalysis
         from insightface.model_zoo import get_model
         from insightface.app.face_analysis import Face
 
+        # Inisialisasi FaceAnalyzer dan Swapper
         analyzer = FaceAnalysis(
             name='buffalo_l',
             root=os.getcwd(),
             allowed_modules=["landmark_3d_68", "landmark_2d_106", "detection", "recognition", "genderage"],
         )
-        analyzer.prepare(ctx_id=0, det_size=(640, 640))  # karena GPU sudah di-set virtual
+        analyzer.prepare(ctx_id=0, det_size=(640, 640))  # GPU virtual
 
         swapper = get_model("models/inswapper_128.onnx", download=False)
-        src_face = Face(**src_face_data)
 
+        # Deteksi wajah dari source image
+        src_img = cv2.imread(src_image_path)
+        src_faces = analyzer.get(src_img)
+        if len(src_faces) == 0:
+            print(f"[Device {device_id}] ❌ Tidak ada wajah di {src_image_path}")
+            return
+        src_face = src_faces[0]
+
+        # Proses semua frame
         for img_name in tqdm(image_names, desc=f"GPU:{device_id}"):
             img_path = os.path.join(globals.EXTRACTED_FRAME_DIR, img_name)
             image = cv2.imread(img_path)
