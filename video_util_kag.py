@@ -6,9 +6,8 @@ from tqdm import tqdm
 import shutil
 from multiprocessing import Process
 import copy
-from google.colab.patches import cv2_imshow
 import numpy as np
-
+from utilities import Utilities
 class VideoUtil:
     def test():
         print("")
@@ -124,10 +123,7 @@ class VideoUtil:
             # 📦 Tampilkan grid setiap 6 preview
             if len(preview_images) == 6:
                 print(f"\n📸 Grid preview (frame ke-{idx})")
-                grid_row1 = np.hstack(preview_images[:3])
-                grid_row2 = np.hstack(preview_images[3:])
-                grid = np.vstack([grid_row1, grid_row2])
-                cv2_imshow(grid)
+                Utilities.show_image_grid(preview_images, cols=3, title=f"Frame ke-{idx}")
                 preview_images = []
 
         # Hapus folder extracted frame setelah selesai
@@ -223,3 +219,6 @@ class VideoUtil:
         # Jalankan swap_worker di GPU 1
         os.environ["CUDA_VISIBLE_DEVICES"] = "1"
         face_util.swap_worker(1, list_1, src_image_path)
+
+
+

@@ -1,5 +1,6 @@
 import os
 import shutil
+import matplotlib.pyplot as plt
 
 class Utilities:
 
@@ -60,3 +61,16 @@ class Utilities:
     def get_cwd() -> str:
         """Mendapatkan current working directory."""
         return os.getcwd()
+
+    @staticmethod
+    def show_image_grid(images, cols=3, title="Grid Preview"):
+        rows = (len(images) + cols - 1) // cols
+        plt.figure(figsize=(cols * 4, rows * 3))
+        for i, img in enumerate(images):
+            plt.subplot(rows, cols, i + 1)
+            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            plt.imshow(img_rgb)
+            plt.axis("off")
+        plt.suptitle(title)
+        plt.tight_layout()
+        plt.show()
