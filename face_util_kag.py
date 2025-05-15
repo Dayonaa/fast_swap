@@ -92,7 +92,7 @@ class FaceUtil:
             root=os.getcwd(),
             allowed_modules=["landmark_3d_68", "landmark_2d_106", "detection", "recognition", "genderage"],
         )
-        analyzer.prepare(ctx_id=0, det_size=(640, 640))
+        analyzer.prepare(ctx_id=0, det_size=(640, 640))  # karena GPU sudah di-set virtual
 
         swapper = get_model("models/inswapper_128.onnx", download=False)
         src_face = Face(**src_face_data)
@@ -110,7 +110,6 @@ class FaceUtil:
 
             out_path = os.path.join(globals.SWAPPED_FRAME_DIR, img_name)
             cv2.imwrite(out_path, output)
-
 
 
     def swap_faces_on_folder(src_face):
