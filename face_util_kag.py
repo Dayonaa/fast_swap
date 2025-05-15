@@ -79,19 +79,22 @@ class FaceUtil:
         swapper = FaceUtil.swapper
         return swapper.get(target_image, target_face, source_face)
 
-    def swap_worker(self, device_id, image_names, src_face_data):
-        # Inisialisasi FaceAnalyzer dan Swapper dengan ctx_id sesuai device
+    @staticmethod
+    def swap_worker(device_id, image_names, src_face_data):
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(device_id)
+
+        from insightface.app import FaceAnalysis
+        from insightface.model_zoo import get_model
+        from insightface.app.face_analysis import Face
+
         analyzer = FaceAnalysis(
             name='buffalo_l',
             root=os.getcwd(),
             allowed_modules=["landmark_3d_68", "landmark_2d_106", "detection", "recognition", "genderage"],
         )
-        analyzer.prepare(ctx_id=device_id, det_size=(640, 640))
+        analyzer.prepare(ctx_id=0, det_size=(640, 640))
 
-        swapper = get_model("models/inswapper_128.onnx", download=False, ctx_id=device_id)
-
-        # Buat ulang objek Face mirip `src_face`
-        from insightface.app.face_analysis import Face
+        swapper = get_model("models/inswapper_128.onnx", download=False)
         src_face = Face(**src_face_data)
 
         for img_name in tqdm(image_names, desc=f"GPU:{device_id}"):
@@ -107,6 +110,7 @@ class FaceUtil:
 
             out_path = os.path.join(globals.SWAPPED_FRAME_DIR, img_name)
             cv2.imwrite(out_path, output)
+
 
 
     def swap_faces_on_folder(src_face):

@@ -174,11 +174,11 @@ class VideoUtil:
         list_0 = image_files[:mid]
         list_1 = image_files[mid:]
 
-        # Simpan info dari source face ke bentuk serializable
         src_face_data = source_face.__dict__
 
-        p0 = Process(target=face_util.swap_worker, args=(0, list_0, copy.deepcopy(src_face_data)))
-        p1 = Process(target=face_util.swap_worker, args=(1, list_1, copy.deepcopy(src_face_data)))
+        # ✅ Panggil langsung FaceUtil.swap_worker karena sudah staticmethod
+        p0 = Process(target=FaceUtil.swap_worker, args=(0, list_0, copy.deepcopy(src_face_data)))
+        p1 = Process(target=FaceUtil.swap_worker, args=(1, list_1, copy.deepcopy(src_face_data)))
         p0.start()
         p1.start()
         p0.join()
