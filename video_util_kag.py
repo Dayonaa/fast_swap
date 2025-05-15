@@ -12,44 +12,53 @@ class VideoUtil:
     def test():
         print("")
 
-    import shutil  # tambahkan ini di bagian atas file jika belum ada
 
     @staticmethod
     def extract_video_frames(video_path, duration_sec=None):
+        import cv2
+        import os
+        import shutil
+        from tqdm import tqdm
+
         # Hapus folder extracted frames jika ada
         if os.path.exists(globals.EXTRACTED_FRAME_DIR):
             shutil.rmtree(globals.EXTRACTED_FRAME_DIR)
         os.makedirs(globals.EXTRACTED_FRAME_DIR, exist_ok=True)
 
         cap = cv2.VideoCapture(video_path)
-
         if not cap.isOpened():
             print("❌ Gagal membuka video.")
             return
 
         fps = cap.get(cv2.CAP_PROP_FPS)
-        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))  # Ambil total frame video
-        video_duration_sec = total_frames / fps  # Hitung durasi video dalam detik
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        video_duration_sec = total_frames / fps
 
-        # Jika duration_sec None, gunakan durasi video
+        # Durasi target
         if duration_sec is None:
             duration_sec = video_duration_sec
 
-        # Hitung total frame berdasarkan durasi yang diinginkan
-        total_frames_to_extract = int(duration_sec * fps)
-
+        total_frames_to_extract = int(min(duration_sec * fps, total_frames))
         print(f"⚙️ Durasi video: {video_duration_sec:.2f} detik. Menyimpan {total_frames_to_extract} frame.")
 
-        count = 0
-        while count < total_frames_to_extract:
+        frame_count = 0
+        pbar = tqdm(total=total_frames_to_extract, desc="🔍 Ekstraksi frame")
+
+        while frame_count < total_frames_to_extract:
             ret, frame = cap.read()
             if not ret:
                 break
-            cv2.imwrite(os.path.join(globals.EXTRACTED_FRAME_DIR, f"frame_{count:05d}.jpg"), frame)
-            count += 1
+
+            out_path = os.path.join(globals.EXTRACTED_FRAME_DIR, f"frame_{frame_count:05d}.jpg")
+            cv2.imwrite(out_path, frame, [cv2.IMWRITE_JPEG_QUALITY, 100])  # kualitas tinggi
+            frame_count += 1
+            pbar.update(1)
 
         cap.release()
-        print(f"✅ {count} frame (durasi {duration_sec} detik) disimpan ke '{globals.EXTRACTED_FRAME_DIR}'.")
+        pbar.close()
+
+        print(f"✅ {frame_count} frame (durasi {duration_sec:.2f} detik) disimpan ke '{globals.EXTRACTED_FRAME_DIR}'.")
+
 
 
     @staticmethod
@@ -97,7 +106,7 @@ class VideoUtil:
 
         pbar = tqdm(enumerate(image_files), total=len(image_files), desc="🎞️ Proses swapping", unit="frame")
 
-        preview_images = []
+        # preview_images = []
 
         for idx, img_name in pbar:
             img_path = os.path.join(globals.EXTRACTED_FRAME_DIR, img_name)
@@ -109,22 +118,22 @@ class VideoUtil:
                     gender = face_util.detect_gender(face)
                     if gender == "Female":
                         swapped = face_util.swap_faces(source_face, output_img, face)
-                        swapped = face_util.match_histogram(swapped, reference_crop)
+                        # swapped = face_util.match_histogram(swapped, reference_crop)
                         output_img = swapped
 
             out_path = os.path.join(globals.SWAPPED_FRAME_DIR, img_name)
-            cv2.imwrite(out_path, output_img)
+            cv2.imwrite(out_path, output_img, [cv2.IMWRITE_JPEG_QUALITY, 100])
 
             # 🖼️ Simpan ke daftar untuk grid preview
-            if idx % 100 == 0:
-                thumb = cv2.resize(output_img, (320, 180))  # kecilkan untuk grid
-                preview_images.append(thumb)
+            # if idx % 100 == 0:
+            #     thumb = cv2.resize(output_img, (320, 180))  # kecilkan untuk grid
+            #     preview_images.append(thumb)
 
-            # 📦 Tampilkan grid setiap 6 preview
-            if len(preview_images) == 6:
-                print(f"\n📸 Grid preview (frame ke-{idx})")
-                Utilities.show_image_grid(preview_images, cols=3, title=f"Frame ke-{idx}")
-                preview_images = []
+            # # 📦 Tampilkan grid setiap 6 preview
+            # if len(preview_images) == 6:
+            #     print(f"\n📸 Grid preview (frame ke-{idx})")
+            #     Utilities.show_image_grid(preview_images, cols=3, title=f"Frame ke-{idx}")
+            #     preview_images = []
 
         # Hapus folder extracted frame setelah selesai
         shutil.rmtree(globals.EXTRACTED_FRAME_DIR)
