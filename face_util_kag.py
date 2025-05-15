@@ -79,7 +79,7 @@ class FaceUtil:
         swapper = FaceUtil.swapper
         return swapper.get(target_image, target_face, source_face)
 
-    def swap_worker(device_id, image_names, src_face_data):
+    def swap_worker(self, device_id, image_names, src_face_data):
         # Inisialisasi FaceAnalyzer dan Swapper dengan ctx_id sesuai device
         analyzer = FaceAnalysis(
             name='buffalo_l',
