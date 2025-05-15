@@ -28,6 +28,7 @@ class FaceUtil:
         try:
             if not Utilities.path_exists(FaceUtil._model_path):
                 print(f"🔽 Mengunduh model dari {globals.INSWAPPER_MODEL_URL}...")
+                os.makedirs("models", exist_ok=True)
                 urllib.request.urlretrieve(globals.INSWAPPER_MODEL_URL, FaceUtil._model_path)
                 print("✅ Model berhasil diunduh.")
             else:
