@@ -182,3 +182,27 @@ class VideoUtil:
         p1.start()
         p0.join()
         p1.join()
+
+
+    @staticmethod
+    def swap_video_sequential_dual_gpu(src_image_path):
+        face_util = FaceUtil()
+        src_img, src_faces = face_util.detect_faces(src_image_path)
+        if len(src_faces) == 0:
+            print("❌ Tidak ada wajah sumber.")
+            return
+
+        image_files = sorted(os.listdir(globals.EXTRACTED_FRAME_DIR))
+        os.makedirs(globals.SWAPPED_FRAME_DIR, exist_ok=True)
+
+        mid = len(image_files) // 2
+        list_0 = image_files[:mid]
+        list_1 = image_files[mid:]
+
+        # Jalankan swap_worker di GPU 0
+        os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+        face_util.swap_worker(0, list_0, src_image_path)
+
+        # Jalankan swap_worker di GPU 1
+        os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+        face_util.swap_worker(1, list_1, src_image_path)

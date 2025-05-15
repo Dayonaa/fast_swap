@@ -14,7 +14,7 @@ def main():
 
     video_util.extract_video_frames(args.vid_path)
 
-    video_util.swap_video_parallel(args.src_img_path)
+    video_util.swap_video_sequential_dual_gpu(args.src_img_path)
 
     video_util.create_video_from_frames(fps=30)
 
