@@ -160,8 +160,7 @@ class VideoUtil:
 
     @staticmethod
     def swap_video_parallel(src_image_path):
-        face_util = FaceUtil()
-        src_img, src_faces = face_util.detect_faces(src_image_path)
+        src_img, src_faces = FaceUtil.detect_faces(src_image_path)
         if len(src_faces) == 0:
             print("❌ Tidak ada wajah sumber.")
             return
