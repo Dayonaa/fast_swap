@@ -1,6 +1,6 @@
 import argparse
-from face_util import FaceUtil
-from video_utils import VideoUtil
+from face_util_kag import FaceUtil
+from video_util_kag import VideoUtil
 
 def main():
     parser = argparse.ArgumentParser(description="Fast Swap Tool")

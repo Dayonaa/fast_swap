@@ -2,4 +2,4 @@ INSWAPPER_MODEL_URL = "https://huggingface.co/countfloyd/deepfake/resolve/main/i
 
 EXTRACTED_FRAME_DIR="../extracted_frames"
 SWAPPED_FRAME_DIR="../swapped_frames"
-OUTPUT_VIDEO="../video_output/final.mp4"
+OUTPUT_VIDEO="video_output/final.mp4"
