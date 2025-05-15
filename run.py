@@ -6,11 +6,11 @@ def main():
     parser = argparse.ArgumentParser(description="Fast Swap Tool")
     parser.add_argument('--vid-path', type=str, required=True, help='Path ke video input')
     parser.add_argument('--src-img-path', type=str, required=True, help='Path ke gambar sumber wajah')
-
     args = parser.parse_args()
 
     face_util = FaceUtil()
     video_util = VideoUtil()
+
 
     video_util.extract_video_frames(args.vid_path)
 

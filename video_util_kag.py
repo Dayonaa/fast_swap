@@ -6,7 +6,8 @@ from tqdm import tqdm
 import shutil
 from multiprocessing import Process
 import copy
-
+from google.colab.patches import cv2_imshow
+import numpy as np
 
 class VideoUtil:
     def test():
@@ -69,7 +70,6 @@ class VideoUtil:
                 print(gender)
 
 
-
     @staticmethod
     def swap_video(src_image_path):
         face_util = FaceUtil()
@@ -91,17 +91,18 @@ class VideoUtil:
                 reference_crop = face_util.crop_face(faces[0], img)
                 break
 
-        # Proses semua frame ok
         # Hapus folder swapped frames jika ada
         if os.path.exists(globals.SWAPPED_FRAME_DIR):
             shutil.rmtree(globals.SWAPPED_FRAME_DIR)
         os.makedirs(globals.SWAPPED_FRAME_DIR, exist_ok=True)
-        pbar = tqdm(image_files, desc="🎞️ Proses swapping", unit="frame")
 
-        for img_name in pbar:
+        pbar = tqdm(enumerate(image_files), total=len(image_files), desc="🎞️ Proses swapping", unit="frame")
+
+        preview_images = []
+
+        for idx, img_name in pbar:
             img_path = os.path.join(globals.EXTRACTED_FRAME_DIR, img_name)
             image, faces = face_util.detect_faces(img_path)
-
             output_img = image.copy()
 
             if faces:
@@ -110,14 +111,30 @@ class VideoUtil:
                     if gender == "Female":
                         swapped = face_util.swap_faces(source_face, output_img, face)
                         swapped = face_util.match_histogram(swapped, reference_crop)
-                        output_img = swapped  # gunakan hasil swap terakhir
-            # Tetap simpan output meskipun tidak swap agar urutan frame tetap
+                        output_img = swapped
+
             out_path = os.path.join(globals.SWAPPED_FRAME_DIR, img_name)
             cv2.imwrite(out_path, output_img)
-            
-         # Hapus folder extracted frame setelah selesai
+
+            # 🖼️ Simpan ke daftar untuk grid preview
+            if idx % 100 == 0:
+                thumb = cv2.resize(output_img, (320, 180))  # kecilkan untuk grid
+                preview_images.append(thumb)
+
+            # 📦 Tampilkan grid setiap 6 preview
+            if len(preview_images) == 6:
+                print(f"\n📸 Grid preview (frame ke-{idx})")
+                grid_row1 = np.hstack(preview_images[:3])
+                grid_row2 = np.hstack(preview_images[3:])
+                grid = np.vstack([grid_row1, grid_row2])
+                cv2_imshow(grid)
+                preview_images = []
+
+        # Hapus folder extracted frame setelah selesai
         shutil.rmtree(globals.EXTRACTED_FRAME_DIR)
-        print(f"🧹 Folder {globals.EXTRACTED_FRAME_DIR} telah dihapus.")
+        print(f"\n🧹 Folder {globals.EXTRACTED_FRAME_DIR} telah dihapus.")
+
+
 
     @staticmethod
     def create_video_from_frames(fps=30):
