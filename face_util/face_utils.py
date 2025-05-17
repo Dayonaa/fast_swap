@@ -10,8 +10,10 @@ import warnings
 import onnxruntime as ort
 from globals import SWAPPED_FRAME_DIR
 from utililty.utils import Utils
-from tqdm.notebook import tqdm
+from tqdm.auto import tqdm
 from insightface.model_zoo.inswapper import INSwapper
+import globals
+import shutil
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 ort.set_default_logger_severity(3)
@@ -79,7 +81,7 @@ class FaceUtils:
         faces: List[Face] = self.app.get(img)
 
         if not faces:
-            print("⚠️ Tidak ada wajah terdeteksi.")
+            # print("⚠️ Tidak ada wajah terdeteksi.")
             return None
 
         for face in faces:
@@ -256,7 +258,7 @@ class FaceUtils:
         erode: int = 5,
         feather: int = 15,
         save: bool = True,
-    ) -> np.ndarray | None:
+    ) -> Tuple[np.ndarray, str] | None:
         """
         Ganti wajah pada gambar `src` dengan wajah dari `target`, lalu simpan hasil ke `out_dir`.
 
@@ -268,16 +270,18 @@ class FaceUtils:
             gender (str): Filter gender wajah di `src` ('F' atau 'M')
             min_score (float): Minimum confidence score (0.0 - 1.0)
         """
+        msg = ""
 
         if src is None or target is None:
-            print("❌ Gagal memuat gambar.")
+            # print("❌ Gagal memuat gambar.")
+            msg = "❌ Gagal memuat gambar."
             return
 
         faces_src = self.get_face(src)
         faces_target = self.get_face(target)
 
         if not faces_src or not faces_target:
-            print("⚠️ Tidak ditemukan wajah pada salah satu gambar.")
+            msg = "⚠️ Tidak ditemukan wajah pada salah satu gambar."
             return
 
         # Filter wajah di src berdasarkan gender dan score
@@ -289,19 +293,14 @@ class FaceUtils:
         ]
 
         if not filtered_faces_src:
-            print(
-                f"⚠️ Tidak ada wajah di `src` yang cocok dengan filter gender='{gender}' dan score>={min_score}."
-            )
+            msg = f"⚠️ Tidak ada wajah di `src` yang cocok dengan filter gender='{gender}' dan score>={min_score}."
             if save:
                 # Tetap simpan gambar asli sebagai fallback
                 os.makedirs(out_dir, exist_ok=True)
                 out_path = os.path.join(out_dir, f"{file_name}.jpg")
                 cv2.imwrite(out_path, src)
-                print(
-                    f"📷 Gambar asli disimpan karena tidak ada wajah yang cocok: {out_path}"
-                )
+                msg = f"📷 Gambar asli disimpan karena tidak ada wajah yang cocok: {out_path}"
                 return
-            return
         target_face = faces_target[0]
         swapped_img = Utils.load_image(src).copy()
 
@@ -325,7 +324,7 @@ class FaceUtils:
                 )
 
                 if mask_result is None:
-                    print("❌ Mask gagal dibuat")
+                    msg = "❌ Mask gagal dibuat"
                     continue
 
                 mask, _ = mask_result
@@ -339,6 +338,92 @@ class FaceUtils:
             os.makedirs(out_dir, exist_ok=True)
             out_path = os.path.join(out_dir, f"{file_name}.jpg")
             cv2.imwrite(out_path, swapped_img)
-            print(f"✅ Swap selesai. Hasil disimpan di: {out_path}")
+            # print(f"✅ Swap selesai. Hasil disimpan di: {out_path}")
+            msg = "SWAP OK"
             return
-        return swapped_img
+        return swapped_img, msg
+
+    def batch_swap_faces_from_folder(
+        self,
+        target_image: np.ndarray | str,
+        source_dir: str = None,
+        out_dir: str = None,
+        gender: str = "F",
+        min_score: float = 0.80,
+        use_mask: bool = False,
+        inner_face_only: bool = True,
+        erode: int = 5,
+        feather: int = 15,
+        show_progress: bool = True,
+        save: bool = True,
+    ):
+        """
+        Swap wajah untuk semua gambar di folder `source_dir` menggunakan target face dari `target_image`.
+        """
+        if source_dir is None:
+            source_dir = globals.EXTRACTED_FRAME_DIR
+        if out_dir is None:
+            out_dir = globals.SWAPPED_FRAME_DIR
+
+        if os.path.exists(out_dir):
+            shutil.rmtree(out_dir)
+        os.makedirs(out_dir, exist_ok=True)
+
+        image_files = sorted(
+            [
+                f
+                for f in os.listdir(source_dir)
+                if f.lower().endswith((".jpg", ".jpeg", ".png"))
+            ]
+        )
+
+        progress_bar = (
+            tqdm(image_files, desc="🔁 Swapping faces")
+            if show_progress
+            else image_files
+        )
+
+        success_count = 0
+        fail_count = 0
+
+        for img_name in progress_bar:
+            src_path = os.path.join(source_dir, img_name)
+            file_stem = os.path.splitext(img_name)[0]
+            out_path = os.path.join(out_dir, f"{file_stem}.jpg")
+
+            try:
+                swapped, msg = self.swap_face(
+                    src=src_path,
+                    target=target_image,
+                    out_dir=out_dir,
+                    show_progress=False,
+                    gender=gender,
+                    min_score=min_score,
+                    file_name=file_stem,
+                    use_mask=use_mask,
+                    inner_face_only=inner_face_only,
+                    erode=erode,
+                    feather=feather,
+                    save=False,
+                )
+
+                if swapped is not None:
+                    cv2.imwrite(out_path, swapped)
+                    success_count += 1
+                    progress_bar.set_postfix(
+                        status="✅", file=img_name, msg=msg or "OK"
+                    )
+                else:
+                    fail_count += 1
+                    # progress_bar.set_postfix(
+                    #     status="⚠️", file=img_name, msg=msg or "No swap"
+                    # )
+
+            except Exception as e:
+                fail_count += 1
+                # progress_bar.set_postfix(status="❌", file=img_name, msg=str(e))
+
+        if show_progress:
+            tqdm.write(
+                f"\n🎯 Total: {len(image_files)} | ✅ Berhasil: {success_count} | ❌ Gagal: {fail_count}"
+            )

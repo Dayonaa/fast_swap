@@ -10,3 +10,5 @@ run.ipynb
 .vscode
 .ipynb_checkpoints
 __pycache__
+SWAPPED_FRAME
+EXTRACTED_FRAME

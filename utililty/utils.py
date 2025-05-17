@@ -8,6 +8,7 @@ from insightface.app import FaceAnalysis
 import shutil
 from tqdm.notebook import tqdm
 import globals
+import onnxruntime as ort
 
 
 class Utils:
@@ -18,13 +19,22 @@ class Utils:
         self.video_output = globals.VIDEO_OUTPUT
 
     def load_models(self):
-        print("\U0001f527 Loading models (CPU)...")
-        globals.SWAPPER_APP = get_model(
-            self.onnx_path, providers=["CPUExecutionProvider"]
-        )
+        # Cek apakah CUDA tersedia di ONNX Runtime
+        available_providers = ort.get_available_providers()
+        if "CUDAExecutionProvider" in available_providers:
+            providers = ["CUDAExecutionProvider"]
+            print("⚡ Menggunakan GPU (CUDAExecutionProvider)...")
+        else:
+            providers = ["CPUExecutionProvider"]
+            print("🧠 CUDA tidak tersedia, menggunakan CPUExecutionProvider...")
+
+        print("🔧 Loading models...")
+
+        globals.SWAPPER_APP = get_model(self.onnx_path, providers=providers)
+
         globals.ANTELOP_V2_APP = FaceAnalysis(
             name="antelopev2",
-            providers=["CPUExecutionProvider"],
+            providers=providers,
             root=os.getcwd(),
             allowed_modules=[
                 "landmark_3d_68",
@@ -34,9 +44,10 @@ class Utils:
                 "genderage",
             ],
         )
+
         globals.BUFFALO_APP = FaceAnalysis(
             name="buffalo_l",
-            providers=["CPUExecutionProvider"],
+            providers=providers,
             root=os.getcwd(),
             allowed_modules=[
                 "landmark_3d_68",
@@ -46,9 +57,10 @@ class Utils:
                 "genderage",
             ],
         )
+
         globals.ANTELOP_V2_APP.prepare(ctx_id=0, det_size=(640, 640))
         globals.BUFFALO_APP.prepare(ctx_id=0, det_size=(640, 640))
-        print("✅ Models loaded.")
+        print("✅ Models loaded with providers:", providers)
 
     @staticmethod
     def show_image(img: str | np.ndarray, figsize=(4, 4)) -> None:
@@ -80,16 +92,17 @@ class Utils:
     def load_image(img: Union[str, np.ndarray]) -> np.ndarray | None:
         if isinstance(img, str):
             if not os.path.exists(img):
-                print(f"❌ File tidak ditemukan: {img}")
+                # print(f"❌ File tidak ditemukan: {img}")
                 return None
             img = cv2.imread(img)
             if img is None:
-                print(f"❌ Gagal membaca gambar dari path: {img}")
+                return None
+                # print(f"❌ Gagal membaca gambar dari path: {img}")
             return img
         elif isinstance(img, np.ndarray):
             return img
         else:
-            print("❌ Input harus path (str) atau np.ndarray.")
+            # print("❌ Input harus path (str) atau np.ndarray.")
             return None
 
     @staticmethod
@@ -117,9 +130,9 @@ class Utils:
             return None
 
     @staticmethod
-    def extract_video_frames(self, video_path, out_dir, duration_sec=None):
+    def extract_video_frames(video_path, out_dir=None, duration_sec=None):
         if out_dir is None:
-            out_dir = self.extracted_frame_dir
+            out_dir = globals.EXTRACTED_FRAME_DIR
 
         if os.path.exists(out_dir):
             shutil.rmtree(out_dir)
@@ -162,13 +175,12 @@ class Utils:
             f"✅ {frame_count} frame (durasi {duration_sec:.2f} detik) disimpan ke '{out_dir}'."
         )
 
-    @staticmethod
-    def create_video_from_frames(self, frames_path, out_dir, fps=30):
-        if out_dir is None:
-            out_dir = self.video_output
+    def create_video_from_frames(frames_path, out_dir, fps=30):
+        # if out_dir is None:
+        #     out_dir = globals.VIDEO_OUTPUT
 
-        if frame_path is None:
-            out_dir = self.swapped_frame_dir
+        # if frame_path is None:
+        #     frame_path = globals.SWAPPED_FRAME_DIR
 
         frame_files = sorted(os.listdir(frames_path))
 
