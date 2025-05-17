@@ -1,7 +1,12 @@
 
 models/
-assets/
+assets/*
 extracted_frames/
 swapped_frames/
 haha.mp4
 video_output/
+another/
+run.ipynb
+.vscode
+.ipynb_checkpoints
+__pycache__
